@@ -10,8 +10,8 @@ if (-not (Test-Path $dump1090)) {
 
 Write-Host "Starting dump1090 with network output..." -ForegroundColor Cyan
 Write-Host "  SBS output: port 30003" -ForegroundColor White
-Write-Host "  Beast output: port 30005" -ForegroundColor White
+Write-Host "  dump1090 web UI: http://localhost:8081" -ForegroundColor White
 Write-Host "  Press Ctrl+C to stop" -ForegroundColor Yellow
 Write-Host ""
 
-& $dump1090 --interactive --net --net-sbs-port 30003 --net-bo-port 30005 --gain -10
+& $dump1090 --interactive --net

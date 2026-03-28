@@ -14,13 +14,13 @@ Write-Host "=== Starting ADS-B Tracker ===" -ForegroundColor Cyan
 # Start dump1090 in background
 Write-Host "Starting dump1090..." -ForegroundColor Yellow
 $dump1090Process = Start-Process -FilePath $dump1090 `
-    -ArgumentList "--net", "--net-sbs-port", "30003", "--net-bo-port", "30005", "--gain", "-10" `
+    -ArgumentList "--net" `
     -PassThru -WindowStyle Minimized
 
 Write-Host "dump1090 started (PID: $($dump1090Process.Id))" -ForegroundColor Green
 
 # Give dump1090 a moment to initialize
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 3
 
 # Start Python app
 Write-Host "Starting web app..." -ForegroundColor Yellow
