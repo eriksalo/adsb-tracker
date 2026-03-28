@@ -55,9 +55,9 @@ services:
       - ultrafeeder-graphs:/var/lib/collectd
       - ultrafeeder-cache:/var/cache/readsb
     tmpfs:
-      - /run:rw,noexec,nosuid,size=128m
-      - /tmp:rw,noexec,nosuid,size=64m
-      - /var/log:rw,noexec,nosuid,size=32m
+      - /run:exec,size=128m
+      - /tmp:size=64m
+      - /var/log:size=32m
 
   # Optional: custom web app (our Python tracker)
   # Connects to ultrafeeder's SBS output for additional features

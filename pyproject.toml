@@ -22,6 +22,12 @@ dev = [
     "ruff>=0.3",
 ]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+adsb_tracker = ["static/**/*"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
