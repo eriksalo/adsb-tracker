@@ -14,7 +14,7 @@ def test_parse_valid_msg3() -> None:
 
 def test_parse_valid_msg1() -> None:
     """MSG type 1 contains callsign."""
-    line = "MSG,1,1,1,A1B2C3,1,2024/01/15,12:00:00.000,2024/01/15,12:00:00.000,UAL123,,,,,,,,,,0"
+    line = "MSG,1,1,1,A1B2C3,1,2024/01/15,12:00:00.000,2024/01/15,12:00:00.000,UAL123,,,,,,,,,,,0"
     update = parse_sbs_message(line)
     assert update is not None
     assert update.icao_hex == "A1B2C3"
