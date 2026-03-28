@@ -1,6 +1,6 @@
 # ADS-B Tracker
 
-Real-time aircraft tracker for Windows using a Nooelec RTL-SDR dongle. Decodes ADS-B (1090 MHz) signals with dump1090, displays live aircraft on a web map, and optionally feeds data to commercial tracking services for premium memberships.
+Real-time aircraft tracker using a Nooelec RTL-SDR dongle. Decodes ADS-B (1090 MHz) signals, displays live aircraft on a web map, and feeds data to commercial tracking services for free premium memberships. Runs on **Windows** (dump1090 + Python) or **Raspberry Pi** (Docker + Ultrafeeder).
 
 ## Architecture
 
@@ -156,6 +156,55 @@ RADARBOX_ENABLED=true
 | `RADARBOX_ENABLED` | `false` | Enable built-in RadarBox Beast relay |
 | `RADARBOX_HOST` | `feed.radarbox.com` | RadarBox ingestion server |
 | `RADARBOX_PORT` | `30005` | RadarBox ingestion port |
+
+## Raspberry Pi Deployment
+
+Run the tracker 24/7 on a Raspberry Pi 3B (or newer) using Docker. Uses the [sdr-enthusiasts Ultrafeeder](https://github.com/sdr-enthusiasts/docker-adsb-ultrafeeder) image — an all-in-one container with readsb, tar1090, and multi-feeder support.
+
+### Quick Start (Pi)
+
+1. Flash **Raspberry Pi OS Lite** (or DietPi) to an SD card
+2. SSH in and clone this repo:
+   ```bash
+   git clone https://github.com/eriksalo/adsb-tracker.git
+   cd adsb-tracker/deploy/pi
+   ```
+3. Run the setup script:
+   ```bash
+   chmod +x setup-pi.sh
+   ./setup-pi.sh
+   ```
+4. Edit `.env` with your station coordinates (pre-filled for Niwot, CO)
+5. Plug in your Nooelec SDR and start:
+   ```bash
+   docker compose up -d
+   ```
+6. Open **http://pi-ip-address:8080** for tar1090 map
+
+### Pi Architecture
+
+```
+Nooelec SDR ──► Ultrafeeder container (readsb + tar1090 + feeders)
+                  ├── :8080  tar1090 web UI
+                  ├── :30003 SBS output
+                  └── :30005 Beast output ──► RadarBox / FR24 / FlightAware
+                          │
+                Custom app container (optional, :8081)
+                  └── Our Python/FastAPI tracker with raw data view
+```
+
+### Feeder Signups
+
+After the Pi is running, sign up for free premium accounts:
+
+| Service | Value | Signup |
+|---------|-------|--------|
+| RadarBox | $399/yr Business | [radarbox.com/sharing-data](https://www.radarbox.com/sharing-data) |
+| FlightAware | Enterprise | [flightaware.com/adsb/piaware](https://www.flightaware.com/adsb/piaware) |
+| Flightradar24 | Premium | `docker exec -it ultrafeeder fr24feed --signup` |
+| ADSB.fi | Community | Uncomment in docker-compose.yml |
+
+Add your keys to `deploy/pi/.env` and restart: `docker compose up -d`
 
 ## Development
 
