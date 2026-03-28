@@ -73,27 +73,6 @@ services:
     depends_on:
       - ultrafeeder
 
-  # Custom web app (our Python tracker)
-  # Connects to ultrafeeder's SBS output for additional features
-  adsb-tracker:
-    build:
-      context: ../..
-      dockerfile: deploy/pi/Dockerfile
-    container_name: adsb-tracker
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-    environment:
-      - DUMP1090_HOST=ultrafeeder
-      - DUMP1090_SBS_PORT=30003
-      - DUMP1090_BEAST_PORT=30005
-      - WEB_HOST=0.0.0.0
-      - WEB_PORT=8080
-      - STATION_LAT=${FEEDER_LAT}
-      - STATION_LON=${FEEDER_LONG}
-      - AIRCRAFT_TTL_SECONDS=60
-    depends_on:
-      - ultrafeeder
 
 volumes:
   ultrafeeder-globe:
