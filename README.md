@@ -1,210 +1,166 @@
 # ADS-B Tracker
 
-Real-time aircraft tracker using a Nooelec RTL-SDR dongle. Decodes ADS-B (1090 MHz) signals, displays live aircraft on a web map, and feeds data to commercial tracking services for free premium memberships. Runs on **Windows** (dump1090 + Python) or **Raspberry Pi** (Docker + Ultrafeeder).
+Real-time aircraft tracking station using a Nooelec RTL-SDR dongle. Decodes ADS-B (1090 MHz) signals, displays live aircraft on a map, and feeds data to commercial tracking services in exchange for free premium memberships.
+
+**Live map:** [airplane.esalo.com](https://airplane.esalo.com)
 
 ## Architecture
 
 ```
-Nooelec SDR ──► dump1090.exe ──► TCP :30003 (SBS) ──► Python/FastAPI ──► WebSocket ──► Leaflet Map
-                                 TCP :30005 (Beast) ──► RadarBox / Flightradar24 / PlaneFinder
+Nooelec SDR ──► Ultrafeeder (readsb + tar1090)
+                  ├── Web UI (:8080) ──► Cloudflare Tunnel ──► airplane.esalo.com
+                  └── Beast output (:30005)
+                        ├── AirNav RadarBox  → free Business account ($399/yr)
+                        └── Flightradar24    → free Premium subscription
 ```
 
-## Prerequisites
+The production deployment runs on a **Raspberry Pi 3B** with Docker Compose. A Windows development setup using dump1090 + a custom Python/FastAPI app is also included.
 
-- **Windows 10/11**
-- **Python 3.11+**
-- **Nooelec NESDR** (or any RTL-SDR compatible dongle)
-- **Zadig** — USB driver installer ([download](https://zadig.akeo.ie/))
-- **dump1090** — ADS-B decoder ([Windows builds](https://github.com/MalcolmRobb/dump1090))
+## Raspberry Pi Setup
 
-## Quick Start
+### Prerequisites
 
-### 1. Install SDR Driver
+- Raspberry Pi 3B or newer
+- Nooelec NESDR (or any RTL-SDR dongle)
+- MicroSD card with Raspberry Pi OS Lite
 
-Run Zadig as administrator to replace the default DVB-T driver with WinUSB:
-
-1. Options → List All Devices
-2. Select **Bulk-In, Interface (Interface 0)** — verify USB ID is `0BDA:2838`
-3. Select **WinUSB** as target driver
-4. Click **Install Driver**
-
-> **Warning:** Do NOT install the driver to Interface 1 (IR receiver).
-
-### 2. Get dump1090
-
-Download a Windows build of dump1090 and place `dump1090.exe` in `bin/dump1090/`. Or run the setup script for guidance:
-
-```powershell
-powershell scripts/setup_sdr.ps1
-```
-
-### 3. Install Python Dependencies
+### Quick Start
 
 ```bash
-pip install -e .
-```
+# Clone the repo
+git clone https://github.com/eriksalo/adsb-tracker.git
+cd adsb-tracker/deploy/pi
 
-Or install directly:
+# Install Docker and blacklist DVB-T drivers
+chmod +x setup-pi.sh
+./setup-pi.sh
 
-```bash
-pip install -e ".[dev]"
-```
-
-### 4. Configure
-
-Copy `.env.example` to `.env` and set your station location:
-
-```bash
+# Configure station location
 cp .env.example .env
+nano .env  # set FEEDER_LAT, FEEDER_LONG, FEEDER_ALT_M, FEEDER_TZ
+
+# Start
+docker compose up -d
 ```
 
-Edit `.env`:
+Open **http://pi-ip:8080** for the tar1090 map.
 
-```
-STATION_LAT=47.6062
-STATION_LON=-122.3321
-```
+### Docker Containers
 
-### 5. Run
+| Container | Image | Purpose |
+|-----------|-------|---------|
+| ultrafeeder | sdr-enthusiasts/docker-adsb-ultrafeeder | ADS-B decoding (readsb) + tar1090 web map |
+| airnavradar | sdr-enthusiasts/docker-airnavradar | Feed to AirNav RadarBox |
+| flightradar24 | sdr-enthusiasts/docker-flightradar24 | Feed to Flightradar24 |
 
-**Option A** — Start everything together:
+### Feeder Services
 
-```powershell
-powershell scripts/start_all.ps1
-```
+Share your ADS-B data to receive free premium memberships:
 
-**Option B** — Start separately:
+| Service | What You Get | How to Sign Up |
+|---------|-------------|----------------|
+| **AirNav RadarBox** | Business account ($399/yr) | [airnavradar.com](https://www.airnavradar.com/raspberry-pi) — run `docker run --rm -it ghcr.io/sdr-enthusiasts/docker-airnavradar rbfeeder --showkey --no-start` to get a sharing key |
+| **Flightradar24** | Premium subscription | Run `docker run --rm -it --entrypoint fr24feed ghcr.io/sdr-enthusiasts/docker-flightradar24 --signup` and follow the prompts |
+| **FlightAware** | Enterprise account | [flightaware.com/adsb/piaware/claim](https://www.flightaware.com/adsb/piaware/claim) |
+| **PlaneFinder** | Premium access | [planefinder.net/coverage/client](https://planefinder.net/coverage/client) |
 
-```powershell
-# Terminal 1: dump1090
-powershell scripts/start_dump1090.ps1
+Add sharing keys to `deploy/pi/.env` and restart: `docker compose up -d`
 
-# Terminal 2: Web app
-python -m adsb_tracker
-```
+### Cloudflare Tunnel (Optional)
 
-Open **http://localhost:8080** in your browser.
+Expose the map publicly:
 
-## Web Interface
+```bash
+# Install cloudflared
+curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb -o /tmp/cloudflared.deb
+sudo dpkg -i /tmp/cloudflared.deb
 
-- Real-time aircraft positions on an OpenStreetMap base layer
-- Aircraft icons colored by altitude and rotated by heading
-- Click any aircraft for detailed info (callsign, altitude, speed, squawk, distance)
-- Stats overlay showing tracked aircraft count and message rate
-- WebSocket-based updates — no polling needed
+# Authenticate and create tunnel
+cloudflared tunnel login
+cloudflared tunnel create airplane
+cloudflared tunnel route dns airplane airplane.yourdomain.com
 
-## API Endpoints
+# Configure
+sudo mkdir -p /etc/cloudflared
+cat > ~/.cloudflared/config.yml << EOF
+tunnel: <TUNNEL_ID>
+credentials-file: /home/$USER/.cloudflared/<TUNNEL_ID>.json
+ingress:
+  - hostname: airplane.yourdomain.com
+    service: http://localhost:8080
+  - service: http_status:404
+EOF
+sudo cp ~/.cloudflared/config.yml /etc/cloudflared/
+sudo cp ~/.cloudflared/<TUNNEL_ID>.json /etc/cloudflared/
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Web map interface |
-| `GET /api/aircraft` | JSON array of all tracked aircraft |
-| `GET /api/stats` | Tracking statistics |
-| `WebSocket /ws` | Real-time aircraft updates |
-
-## Feeding Data to Commercial Services
-
-Share your ADS-B data to receive **free premium memberships**:
-
-### RadarBox (Recommended)
-
-**Free Business account** ($399/year value) for data feeders. Full Windows support.
-
-1. Sign up at [radarbox.com/sharing-data](https://www.radarbox.com/sharing-data)
-2. Download and install the RadarBox Windows feeder client
-3. Point it at dump1090's Beast output: `127.0.0.1:30005`
-
-Or use the built-in Python feeder — set in `.env`:
-
-```
-RADARBOX_ENABLED=true
+# Install as service
+sudo cloudflared service install
+sudo systemctl start cloudflared
 ```
 
-### Flightradar24
-
-**Free Premium subscription** for data feeders. Official Windows feeder software.
-
-1. Download from [flightradar24.com/share-your-data](https://www.flightradar24.com/share-your-data)
-2. Install and configure — it connects to dump1090 automatically
-
-### PlaneFinder
-
-**Free Premium access** for data feeders. Windows 8+ client available.
-
-1. Download client from [planefinder.net/coverage/client](https://planefinder.net/coverage/client)
-2. Contact PlaneFinder support for feed credentials
-3. Configure to connect to dump1090's Beast output
-
-### Other Services
-
-- **FlightAware** — Enterprise membership for feeders, but requires Linux/Raspberry Pi (no Windows support)
-- **ADS-B Exchange** — Non-profit, primarily Docker/Linux feeders
-- **OpenSky Network** — Research-focused, Linux-only feeder software
-
-## Configuration Reference
+### Pi Configuration Reference
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DUMP1090_HOST` | `127.0.0.1` | dump1090 hostname |
-| `DUMP1090_SBS_PORT` | `30003` | SBS-1 output port |
-| `DUMP1090_BEAST_PORT` | `30005` | Beast binary output port |
-| `WEB_HOST` | `0.0.0.0` | Web server bind address |
-| `WEB_PORT` | `8080` | Web server port |
-| `STATION_LAT` | *(none)* | Station latitude (for distance calc) |
-| `STATION_LON` | *(none)* | Station longitude (for distance calc) |
-| `AIRCRAFT_TTL_SECONDS` | `60` | Remove aircraft after N seconds without updates |
-| `RADARBOX_ENABLED` | `false` | Enable built-in RadarBox Beast relay |
-| `RADARBOX_HOST` | `feed.radarbox.com` | RadarBox ingestion server |
-| `RADARBOX_PORT` | `30005` | RadarBox ingestion port |
+| `FEEDER_LAT` | | Station latitude |
+| `FEEDER_LONG` | | Station longitude |
+| `FEEDER_ALT_M` | | Station altitude in meters |
+| `FEEDER_TZ` | | Timezone (e.g. `America/Denver`) |
+| `RADARBOX_SHARING_KEY` | | AirNav RadarBox sharing key |
+| `FR24_SHARING_KEY` | | Flightradar24 sharing key |
 
-## Raspberry Pi Deployment
+## Windows Development Setup
 
-Run the tracker 24/7 on a Raspberry Pi 3B (or newer) using Docker. Uses the [sdr-enthusiasts Ultrafeeder](https://github.com/sdr-enthusiasts/docker-adsb-ultrafeeder) image — an all-in-one container with readsb, tar1090, and multi-feeder support.
+For development and testing on Windows with a local SDR.
 
-### Quick Start (Pi)
+### Prerequisites
 
-1. Flash **Raspberry Pi OS Lite** (or DietPi) to an SD card
-2. SSH in and clone this repo:
-   ```bash
-   git clone https://github.com/eriksalo/adsb-tracker.git
-   cd adsb-tracker/deploy/pi
-   ```
-3. Run the setup script:
-   ```bash
-   chmod +x setup-pi.sh
-   ./setup-pi.sh
-   ```
-4. Edit `.env` with your station coordinates (pre-filled for Niwot, CO)
-5. Plug in your Nooelec SDR and start:
-   ```bash
-   docker compose up -d
-   ```
-6. Open **http://pi-ip-address:8080** for tar1090 map
+- Windows 10/11
+- Python 3.11+
+- Nooelec NESDR
+- [Zadig](https://zadig.akeo.ie/) (USB driver installer)
 
-### Pi Architecture
+### Setup
+
+1. **Install SDR driver** with Zadig: select `RTL2832U` device, install WinUSB driver
+2. **Get dump1090**: run `powershell scripts/setup_sdr.ps1` for instructions
+3. **Install Python deps**: `pip install -e ".[dev]"`
+4. **Configure**: `cp .env.example .env` and set `STATION_LAT`/`STATION_LON`
+5. **Run**: `powershell scripts/start_all.ps1`
+
+### Web Interface
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:8080` | Custom Leaflet map with WebSocket updates |
+| `http://localhost:8080/raw` | Sortable aircraft table + raw message stream |
+| `http://localhost:8080/tar1090/` | tar1090 visualization (bundled with dump1090) |
+| `http://localhost:8080/api/aircraft` | JSON API |
+| `http://localhost:8080/api/stats` | Tracking statistics |
+
+## Project Structure
 
 ```
-Nooelec SDR ──► Ultrafeeder container (readsb + tar1090 + feeders)
-                  ├── :8080  tar1090 web UI
-                  ├── :30003 SBS output
-                  └── :30005 Beast output ──► RadarBox / FR24 / FlightAware
-                          │
-                Custom app container (optional, :8081)
-                  └── Our Python/FastAPI tracker with raw data view
+adsb-tracker/
+├── deploy/pi/               # Raspberry Pi Docker deployment
+│   ├── docker-compose.yml   # Ultrafeeder + feeder containers
+│   ├── .env.example         # Configuration template
+│   ├── Dockerfile           # Custom Python app (optional)
+│   └── setup-pi.sh          # Pi setup script
+├── src/adsb_tracker/        # Python application
+│   ├── app.py               # FastAPI factory with lifespan tasks
+│   ├── config.py            # Pydantic settings
+│   ├── decoder.py           # SBS TCP client + parser
+│   ├── models.py            # Aircraft pydantic models
+│   ├── store.py             # In-memory state with TTL
+│   ├── feeder.py            # Beast TCP relay
+│   ├── routes.py            # REST + WebSocket + tar1090 endpoints
+│   └── static/              # Frontend (HTML, JS, CSS)
+├── scripts/                 # Windows PowerShell scripts
+├── tests/                   # pytest suite
+├── pyproject.toml
+└── CLAUDE.md
 ```
-
-### Feeder Signups
-
-After the Pi is running, sign up for free premium accounts:
-
-| Service | Value | Signup |
-|---------|-------|--------|
-| RadarBox | $399/yr Business | [radarbox.com/sharing-data](https://www.radarbox.com/sharing-data) |
-| FlightAware | Enterprise | [flightaware.com/adsb/piaware](https://www.flightaware.com/adsb/piaware) |
-| Flightradar24 | Premium | `docker exec -it ultrafeeder fr24feed --signup` |
-| ADSB.fi | Community | Uncomment in docker-compose.yml |
-
-Add your keys to `deploy/pi/.env` and restart: `docker compose up -d`
 
 ## Development
 

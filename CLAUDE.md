@@ -1,14 +1,34 @@
 # ADS-B Tracker
 
 ## Project Overview
-Windows 11 ADS-B aircraft tracker using a Nooelec SDR dongle. Decodes 1090 MHz ADS-B signals via dump1090 and displays live aircraft on a web map.
+ADS-B aircraft tracking station using a Nooelec RTL-SDR dongle. Primary deployment is a Raspberry Pi 3B running 24/7 with Docker, feeding data to AirNav RadarBox and Flightradar24 for free premium accounts.
 
 ## Architecture
+
+### Production (Raspberry Pi)
 ```
-Nooelec SDR → dump1090.exe (RF decode) → TCP ports
-                                           ├─ :30003 SBS-1 → Python (FastAPI) → WebSocket → Leaflet map
-                                           └─ :30005 Beast  → RadarBox feeder
+Nooelec SDR ──► Ultrafeeder container (readsb + tar1090)
+                  ├── :8080 tar1090 web UI ──► Cloudflare Tunnel ──► airplane.esalo.com
+                  └── :30005 Beast output
+                        ├── AirNav RadarBox container (EXTRPI718471)
+                        └── Flightradar24 container (KBDU59)
 ```
+
+### Development (Windows)
+```
+Nooelec SDR ──► dump1090.exe (gvanem build, config-file based)
+                  ├── :30003 SBS ──► Python/FastAPI ──► WebSocket ──► Leaflet map
+                  └── :8081 dump1090 built-in web UI
+```
+
+## Pi Deployment
+- Host: 10.0.0.77 (static IP, WiFi)
+- Hostname: airplane
+- SSH: key auth configured
+- Docker Compose: `deploy/pi/docker-compose.yml`
+- Containers: ultrafeeder, airnavradar, flightradar24
+- Cloudflare Tunnel: airplane.esalo.com → localhost:8080
+- All services auto-start on boot
 
 ## Code Style
 - Python 3.11+, type hints on all functions
@@ -18,29 +38,31 @@ Nooelec SDR → dump1090.exe (RF decode) → TCP ports
 - snake_case everywhere
 - pydantic models for data, pydantic-settings for config
 
-## Key Dependencies
-- **dump1090**: External process, decodes RF from SDR. Must be running before the Python app.
-- **FastAPI + uvicorn**: Web server with WebSocket support
-- **pyModeS**: ADS-B message decoding utilities (used for supplemental decoding)
-- **Leaflet.js**: Frontend map rendering via CDN
+## Project Layout
+- `src/adsb_tracker/` — Python application (FastAPI + WebSocket + Leaflet map)
+- `src/adsb_tracker/static/` — Frontend HTML/JS/CSS (map, raw data table)
+- `deploy/pi/` — Raspberry Pi Docker Compose deployment
+- `scripts/` — Windows PowerShell setup and launch scripts
+- `tests/` — pytest test suite
+- `bin/` — gitignored, holds dump1090 Windows binary
 
 ## Running
-```bash
-# Start dump1090 first
-powershell scripts/start_dump1090.ps1
 
-# Start the web app
+### Pi (production)
+```bash
+cd deploy/pi && docker compose up -d
+```
+
+### Windows (development)
+```bash
+powershell scripts/start_all.ps1
+# or separately:
+powershell scripts/start_dump1090.ps1
 python -m adsb_tracker
 ```
-Web UI at http://localhost:8080
-
-## Project Layout
-- `src/adsb_tracker/` — Python application
-- `src/adsb_tracker/static/` — Frontend HTML/JS/CSS
-- `scripts/` — PowerShell setup and launch scripts
-- `bin/` — gitignored, holds dump1090 binary (downloaded via setup script)
 
 ## Testing
 ```bash
+pip install -e ".[dev]"
 pytest
 ```
