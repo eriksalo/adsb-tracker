@@ -59,7 +59,21 @@ services:
       - /tmp:size=64m
       - /var/log:size=32m
 
-  # Optional: custom web app (our Python tracker)
+  # AirNav RadarBox feeder (free Business account $399/yr)
+  airnavradar:
+    image: ghcr.io/sdr-enthusiasts/docker-airnavradar:latest
+    container_name: airnavradar
+    restart: unless-stopped
+    environment:
+      - BEASTHOST=ultrafeeder
+      - LAT=${FEEDER_LAT}
+      - LONG=${FEEDER_LONG}
+      - ALT=${FEEDER_ALT_M}
+      - SHARING_KEY=${RADARBOX_SHARING_KEY}
+    depends_on:
+      - ultrafeeder
+
+  # Custom web app (our Python tracker)
   # Connects to ultrafeeder's SBS output for additional features
   adsb-tracker:
     build:
