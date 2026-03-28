@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADS-B Raw Data</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #16213e;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #0f3460;
+        }
+        header h1 { font-size: 18px; color: #4fc3f7; }
+        header .links a {
+            color: #4fc3f7;
+            text-decoration: none;
+            margin-left: 16px;
+            font-size: 14px;
+        }
+        header .links a:hover { text-decoration: underline; }
+        .stats-bar {
+            background: #16213e;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: #aaa;
+            border-bottom: 1px solid #0f3460;
+        }
+        .stats-bar span { margin-right: 24px; }
+        .stats-bar .val { color: #4fc3f7; font-weight: bold; }
+        #table-container {
+            flex: 1;
+            overflow: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        th {
+            background: #0f3460;
+            color: #4fc3f7;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover { background: #1a4a7a; }
+        th.sorted-asc::after { content: ' ▲'; }
+        th.sorted-desc::after { content: ' ▼'; }
+        td {
+            padding: 6px 12px;
+            border-bottom: 1px solid #1a1a2e;
+            white-space: nowrap;
+        }
+        tr { background: #16213e; }
+        tr:nth-child(even) { background: #1a1f3e; }
+        tr:hover { background: #1e3a5f; }
+        tr.new-aircraft { animation: highlight 2s ease-out; }
+        @keyframes highlight {
+            from { background: #2e7d32; }
+        }
+        .alt-low { color: #4caf50; }
+        .alt-mid { color: #ffeb3b; }
+        .alt-high { color: #f44336; }
+        .squawk-emerg { color: #ff1744; font-weight: bold; }
+        .on-ground { color: #8bc34a; font-style: italic; }
+        .callsign { color: #fff; font-weight: 600; }
+        .no-data { color: #555; }
+        #raw-log {
+            display: none;
+            flex: 1;
+            overflow: auto;
+            padding: 12px 20px;
+            font-size: 12px;
+            line-height: 1.6;
+            background: #0d0d1a;
+        }
+        #raw-log .msg { color: #8bc34a; }
+        #raw-log .ts { color: #666; }
+        .toggle-bar {
+            background: #16213e;
+            padding: 6px 20px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .toggle-bar button {
+            background: #0f3460;
+            color: #4fc3f7;
+            border: 1px solid #4fc3f7;
+            padding: 4px 12px;
+            margin-right: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 3px;
+        }
+        .toggle-bar button.active {
+            background: #4fc3f7;
+            color: #0f3460;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ADS-B Raw Data</h1>
+        <div class="links">
+            <a href="/">Map View</a>
+            <a href="/tar1090/">tar1090</a>
+        </div>
+    </header>
+    <div class="stats-bar">
+        <span>Aircraft: <span class="val" id="ac-count">0</span></span>
+        <span>Messages: <span class="val" id="msg-count">0</span></span>
+        <span>Msgs/sec: <span class="val" id="msg-rate">0</span></span>
+        <span>Status: <span class="val" id="ws-status">Connecting...</span></span>
+    </div>
+    <div class="toggle-bar">
+        <button id="btn-table" class="active" onclick="showView('table')">Table View</button>
+        <button id="btn-raw" onclick="showView('raw')">Raw Messages</button>
+        <button id="btn-json" onclick="showView('json')">JSON API</button>
+    </div>
+    <div id="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th data-key="icao_hex">ICAO</th>
+                    <th data-key="callsign">Callsign</th>
+                    <th data-key="altitude_ft">Altitude</th>
+                    <th data-key="ground_speed_kt">Speed</th>
+                    <th data-key="track_deg">Heading</th>
+                    <th data-key="vertical_rate">Vert Rate</th>
+                    <th data-key="lat">Lat</th>
+                    <th data-key="lon">Lon</th>
+                    <th data-key="squawk">Squawk</th>
+                    <th data-key="distance_nm">Dist (nm)</th>
+                    <th data-key="message_count">Msgs</th>
+                    <th data-key="last_seen">Last Seen</th>
+                </tr>
+            </thead>
+            <tbody id="ac-tbody"></tbody>
+        </table>
+    </div>
+    <div id="raw-log"></div>
+
+    <script>
+        const aircraft = {};
+        let totalMessages = 0;
+        let lastMsgCount = 0;
+        let sortKey = 'distance_nm';
+        let sortDir = 'asc';
+        let currentView = 'table';
+
+        function showView(view) {
+            currentView = view;
+            document.getElementById('table-container').style.display = view === 'table' ? 'block' : 'none';
+            document.getElementById('raw-log').style.display = view === 'raw' ? 'block' : 'none';
+            document.querySelectorAll('.toggle-bar button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + view).classList.add('active');
+            if (view === 'json') {
+                window.open('/api/aircraft', '_blank');
+                showView('table');
+            }
+        }
+
+        function altClass(alt) {
+            if (alt == null) return 'no-data';
+            if (alt < 10000) return 'alt-low';
+            if (alt < 30000) return 'alt-mid';
+            return 'alt-high';
+        }
+
+        function fmt(val, suffix) {
+            if (val == null) return '<span class="no-data">---</span>';
+            return typeof val === 'number' ? val.toLocaleString() + (suffix || '') : val;
+        }
+
+        function fmtTime(ts) {
+            if (!ts) return '<span class="no-data">---</span>';
+            const d = new Date(ts);
+            return d.toLocaleTimeString();
+        }
+
+        function renderTable() {
+            const list = Object.values(aircraft);
+            list.sort((a, b) => {
+                let av = a[sortKey], bv = b[sortKey];
+                if (av == null) av = sortDir === 'asc' ? Infinity : -Infinity;
+                if (bv == null) bv = sortDir === 'asc' ? Infinity : -Infinity;
+                if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+                return sortDir === 'asc' ? av - bv : bv - av;
+            });
+
+            const tbody = document.getElementById('ac-tbody');
+            tbody.innerHTML = list.map(ac => {
+                const sq = ac.squawk;
+                const sqClass = (sq === '7500' || sq === '7600' || sq === '7700') ? 'squawk-emerg' : '';
+                const grClass = ac.is_on_ground ? 'on-ground' : '';
+                return `<tr class="${grClass}">
+                    <td>${ac.icao_hex}</td>
+                    <td class="callsign">${ac.callsign || '<span class="no-data">---</span>'}</td>
+                    <td class="${altClass(ac.altitude_ft)}">${fmt(ac.altitude_ft, ' ft')}</td>
+                    <td>${fmt(ac.ground_speed_kt != null ? Math.round(ac.ground_speed_kt) : null, ' kt')}</td>
+                    <td>${fmt(ac.track_deg != null ? Math.round(ac.track_deg) : null, '°')}</td>
+                    <td>${fmt(ac.vertical_rate, ' ft/m')}</td>
+                    <td>${ac.lat != null ? ac.lat.toFixed(4) : '<span class="no-data">---</span>'}</td>
+                    <td>${ac.lon != null ? ac.lon.toFixed(4) : '<span class="no-data">---</span>'}</td>
+                    <td class="${sqClass}">${ac.squawk || '<span class="no-data">---</span>'}</td>
+                    <td>${fmt(ac.distance_nm, '')}</td>
+                    <td>${ac.message_count}</td>
+                    <td>${fmtTime(ac.last_seen)}</td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('ac-count').textContent = list.length;
+        }
+
+        function addRawLine(data) {
+            const log = document.getElementById('raw-log');
+            const ts = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="ts">${ts}</span> <span class="msg">${JSON.stringify(data)}</span>`;
+            log.appendChild(div);
+            if (log.children.length > 500) log.removeChild(log.firstChild);
+            if (currentView === 'raw') log.scrollTop = log.scrollHeight;
+        }
+
+        // WebSocket
+        function connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+            ws.onopen = () => { document.getElementById('ws-status').textContent = 'Connected'; };
+            ws.onclose = () => {
+                document.getElementById('ws-status').textContent = 'Reconnecting...';
+                setTimeout(connect, 2000);
+            };
+            ws.onerror = () => ws.close();
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.type === 'snapshot') {
+                    for (const ac of data.data) {
+                        aircraft[ac.icao_hex] = ac;
+                    }
+                } else {
+                    aircraft[data.icao_hex] = data;
+                    addRawLine(data);
+                }
+                totalMessages++;
+                renderTable();
+            };
+        }
+
+        // Sorting
+        document.querySelectorAll('th[data-key]').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                if (sortKey === key) {
+                    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortKey = key;
+                    sortDir = 'asc';
+                }
+                document.querySelectorAll('th').forEach(t => t.classList.remove('sorted-asc', 'sorted-desc'));
+                th.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                renderTable();
+            });
+        });
+
+        // Msg rate
+        setInterval(() => {
+            const rate = totalMessages - lastMsgCount;
+            lastMsgCount = totalMessages;
+            document.getElementById('msg-rate').textContent = rate;
+            document.getElementById('msg-count').textContent = totalMessages.toLocaleString();
+
+            // Prune stale aircraft (>60s)
+            const now = Date.now();
+            for (const [icao, ac] of Object.entries(aircraft)) {
+                if (now - new Date(ac.last_seen).getTime() > 60000) delete aircraft[icao];
+            }
+            renderTable();
+        }, 1000);
+
+        connect();
+    </script>
+</body>
+</html>

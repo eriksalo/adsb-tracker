@@ -73,7 +73,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.store = store
     app.state.ws_clients = ws_clients
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(router)
+
+    # Mount tar1090 static files (before /static so /tar1090/ routes work)
+    if settings.tar1090_path:
+        tar1090_dir = Path(settings.tar1090_path)
+        if tar1090_dir.is_dir():
+            app.mount("/tar1090", StaticFiles(directory=str(tar1090_dir), html=True), name="tar1090")
+            logger.info(f"tar1090 mounted from {tar1090_dir}")
+
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     return app

@@ -19,3 +19,5 @@ class Settings(BaseSettings):
     radarbox_enabled: bool = False
     radarbox_host: str = "feed.radarbox.com"
     radarbox_port: int = 30005
+
+    tar1090_path: str = ""
