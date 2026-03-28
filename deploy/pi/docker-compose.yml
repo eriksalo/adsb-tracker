@@ -3,6 +3,7 @@ services:
     image: ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest_nohealthcheck
     container_name: ultrafeeder
     restart: unless-stopped
+    privileged: true
     ports:
       - "8080:80"       # tar1090 web UI
       - "30003:30003"   # SBS output (for our custom app)
