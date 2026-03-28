@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADS-B Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="map"></div>
+    <div id="stats-overlay">
+        <div id="stats-title">ADS-B Tracker</div>
+        <div id="stats-count">Aircraft: <span id="ac-count">0</span></div>
+        <div id="stats-msgs">Messages: <span id="msg-count">0</span></div>
+        <div id="stats-status" class="disconnected">Disconnected</div>
+    </div>
+    <div id="aircraft-info" class="hidden">
+        <button id="info-close">&times;</button>
+        <h3 id="info-callsign">---</h3>
+        <table>
+            <tr><td>ICAO</td><td id="info-icao">---</td></tr>
+            <tr><td>Altitude</td><td id="info-alt">---</td></tr>
+            <tr><td>Speed</td><td id="info-speed">---</td></tr>
+            <tr><td>Heading</td><td id="info-heading">---</td></tr>
+            <tr><td>Vert Rate</td><td id="info-vrate">---</td></tr>
+            <tr><td>Squawk</td><td id="info-squawk">---</td></tr>
+            <tr><td>Distance</td><td id="info-dist">---</td></tr>
+        </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/ws.js"></script>
+</body>
+</html>
