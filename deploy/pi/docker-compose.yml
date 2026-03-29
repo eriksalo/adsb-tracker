@@ -4,6 +4,14 @@ services:
     container_name: ultrafeeder
     restart: unless-stopped
     privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 30003 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    labels:
+      - autoheal=true
     ports:
       - "8080:80"       # tar1090 web UI
       - "30003:30003"   # SBS output (for our custom app)
@@ -89,6 +97,18 @@ services:
       - FRALT=${FEEDER_ALT_M}
     depends_on:
       - ultrafeeder
+
+  # Auto-restart unhealthy containers (e.g. SDR disconnected)
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=30
+      - AUTOHEAL_START_PERIOD=120
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   # Custom FastAPI/Leaflet tracker UI
   adsb-tracker:
