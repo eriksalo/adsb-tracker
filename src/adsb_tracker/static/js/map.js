@@ -132,5 +132,9 @@ const AircraftMap = (() => {
         document.getElementById('info-close').addEventListener('click', hideInfo);
     });
 
-    return { init, updateAircraft, removeAircraft, showInfo, hideInfo, getTrackedCount, pruneStale };
+    function invalidateSize() {
+        if (map) map.invalidateSize();
+    }
+
+    return { init, updateAircraft, removeAircraft, showInfo, hideInfo, getTrackedCount, pruneStale, invalidateSize };
 })();

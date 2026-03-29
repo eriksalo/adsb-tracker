@@ -3,38 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADS-B Tracker</title>
+    <title>Salo Ranch Airplane Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
-    <div id="map"></div>
-    <div id="stats-overlay">
-        <div id="stats-title">ADS-B Tracker</div>
-        <div id="stats-count">Aircraft: <span id="ac-count">0</span></div>
-        <div id="stats-msgs">Messages: <span id="msg-count">0</span></div>
-        <div id="stats-status" class="disconnected">Disconnected</div>
-        <div id="stats-links" style="margin-top:8px;font-size:12px;">
-            <a href="/raw" style="color:#4fc3f7;text-decoration:none;">Raw Data</a> |
-            <a href="/tar1090/" style="color:#4fc3f7;text-decoration:none;">tar1090</a>
+    <header id="title-bar">
+        <h1>Salo Ranch Airplane Tracker</h1>
+        <div id="header-stats">
+            <span>Aircraft: <span class="val" id="ac-count">0</span></span>
+            <span>Messages: <span class="val" id="msg-count">0</span></span>
+            <span id="stats-status" class="disconnected">Disconnected</span>
+        </div>
+    </header>
+
+    <nav id="tab-bar">
+        <button class="tab active" data-tab="map">Map</button>
+        <button class="tab" data-tab="feed">Feed</button>
+        <div class="tab-links">
+            <a href="/raw" target="_blank">Raw Page</a>
+            <a href="/tar1090/" target="_blank">tar1090</a>
+        </div>
+    </nav>
+
+    <!-- Map Tab -->
+    <div id="tab-map" class="tab-content active">
+        <div id="map"></div>
+        <div id="aircraft-info" class="hidden">
+            <button id="info-close">&times;</button>
+            <h3 id="info-callsign">---</h3>
+            <table>
+                <tr><td>ICAO</td><td id="info-icao">---</td></tr>
+                <tr><td>Altitude</td><td id="info-alt">---</td></tr>
+                <tr><td>Speed</td><td id="info-speed">---</td></tr>
+                <tr><td>Heading</td><td id="info-heading">---</td></tr>
+                <tr><td>Vert Rate</td><td id="info-vrate">---</td></tr>
+                <tr><td>Squawk</td><td id="info-squawk">---</td></tr>
+                <tr><td>Distance</td><td id="info-dist">---</td></tr>
+            </table>
         </div>
     </div>
-    <div id="aircraft-info" class="hidden">
-        <button id="info-close">&times;</button>
-        <h3 id="info-callsign">---</h3>
-        <table>
-            <tr><td>ICAO</td><td id="info-icao">---</td></tr>
-            <tr><td>Altitude</td><td id="info-alt">---</td></tr>
-            <tr><td>Speed</td><td id="info-speed">---</td></tr>
-            <tr><td>Heading</td><td id="info-heading">---</td></tr>
-            <tr><td>Vert Rate</td><td id="info-vrate">---</td></tr>
-            <tr><td>Squawk</td><td id="info-squawk">---</td></tr>
-            <tr><td>Distance</td><td id="info-dist">---</td></tr>
-        </table>
+
+    <!-- Feed Tab -->
+    <div id="tab-feed" class="tab-content">
+        <div id="feed-toggle-bar">
+            <button class="feed-btn active" data-view="decoded">Decoded</button>
+            <button class="feed-btn" data-view="raw">Raw Messages</button>
+        </div>
+        <div id="feed-decoded" class="feed-view active">
+            <table id="feed-table">
+                <thead>
+                    <tr>
+                        <th data-key="icao_hex">ICAO</th>
+                        <th data-key="callsign">Callsign</th>
+                        <th data-key="altitude_ft">Altitude</th>
+                        <th data-key="ground_speed_kt">Speed</th>
+                        <th data-key="track_deg">Heading</th>
+                        <th data-key="vertical_rate">Vert Rate</th>
+                        <th data-key="lat">Lat</th>
+                        <th data-key="lon">Lon</th>
+                        <th data-key="squawk">Squawk</th>
+                        <th data-key="distance_nm">Dist (nm)</th>
+                        <th data-key="message_count">Msgs</th>
+                        <th data-key="last_seen">Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody id="feed-tbody"></tbody>
+            </table>
+        </div>
+        <div id="feed-raw" class="feed-view"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/js/map.js"></script>
+    <script src="/static/js/feed.js"></script>
     <script src="/static/js/ws.js"></script>
 </body>
 </html>

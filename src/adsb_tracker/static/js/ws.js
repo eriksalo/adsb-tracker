@@ -18,16 +18,19 @@ const AircraftWS = (() => {
             const data = JSON.parse(event.data);
 
             if (data.type === 'snapshot') {
-                // Initial snapshot: array of aircraft
                 const activeIcaos = [];
                 for (const ac of data.data) {
                     AircraftMap.updateAircraft(ac);
+                    AircraftFeed.updateAircraft(ac);
                     activeIcaos.push(ac.icao_hex);
                 }
                 AircraftMap.pruneStale(activeIcaos);
+                AircraftFeed.renderTable();
             } else {
-                // Incremental update: single aircraft
                 AircraftMap.updateAircraft(data);
+                AircraftFeed.updateAircraft(data);
+                AircraftFeed.addRawLine(data);
+                AircraftFeed.renderTable();
             }
 
             totalMessages++;
@@ -58,7 +61,6 @@ const AircraftWS = (() => {
         document.getElementById('msg-count').textContent = totalMessages.toLocaleString();
     }
 
-    // Periodically fetch stats from server (includes total server messages)
     async function pollStats() {
         try {
             const resp = await fetch('/api/stats');
@@ -66,7 +68,6 @@ const AircraftWS = (() => {
             document.getElementById('msg-count').textContent = stats.total_messages.toLocaleString();
             document.getElementById('ac-count').textContent = stats.aircraft_count;
 
-            // Initialize map center from station location
             if (stats.station_lat && stats.station_lon && !AircraftWS._mapInitialized) {
                 AircraftMap.init(stats.station_lat, stats.station_lon);
                 AircraftWS._mapInitialized = true;
@@ -77,11 +78,9 @@ const AircraftWS = (() => {
     }
 
     function start() {
-        // Init map with default center, will re-center if station location is set
         AircraftMap.init();
         AircraftWS._mapInitialized = true;
 
-        // Try to get station location for better centering
         pollStats().then(() => {});
 
         connect();

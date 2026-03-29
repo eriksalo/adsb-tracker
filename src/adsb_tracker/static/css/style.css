@@ -7,40 +7,46 @@
 body, html {
     height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
 }
 
-#map {
-    width: 100%;
-    height: 100%;
-    z-index: 1;
+body {
+    display: flex;
+    flex-direction: column;
 }
 
-#stats-overlay {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 1000;
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    min-width: 160px;
+/* Title Bar */
+#title-bar {
+    background: #16213e;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #0f3460;
+    flex-shrink: 0;
 }
 
-#stats-title {
-    font-weight: 700;
-    font-size: 16px;
-    margin-bottom: 6px;
+#title-bar h1 {
+    font-size: 18px;
     color: #4fc3f7;
+    font-weight: 700;
 }
 
-#stats-count, #stats-msgs {
-    margin: 2px 0;
+#header-stats {
+    font-size: 13px;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#header-stats .val {
+    color: #4fc3f7;
+    font-weight: bold;
 }
 
 #stats-status {
-    margin-top: 6px;
     font-size: 12px;
     font-weight: 600;
 }
@@ -51,6 +57,80 @@ body, html {
 
 #stats-status.disconnected {
     color: #ef5350;
+}
+
+/* Tab Bar */
+#tab-bar {
+    background: #16213e;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid #0f3460;
+    flex-shrink: 0;
+}
+
+#tab-bar .tab {
+    background: none;
+    border: none;
+    color: #aaa;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+#tab-bar .tab:hover {
+    color: #e0e0e0;
+}
+
+#tab-bar .tab.active {
+    color: #4fc3f7;
+    border-bottom-color: #4fc3f7;
+}
+
+.tab-links {
+    margin-left: auto;
+    display: flex;
+    gap: 16px;
+}
+
+.tab-links a {
+    color: #4fc3f7;
+    text-decoration: none;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.tab-links a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Map Tab */
+#tab-map {
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    flex: 1;
+    z-index: 1;
 }
 
 #aircraft-info {
@@ -122,3 +202,107 @@ body, html {
 .leaflet-popup-tip {
     background: rgba(0, 0, 0, 0.85);
 }
+
+/* Feed Tab */
+#tab-feed {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+#feed-toggle-bar {
+    background: #16213e;
+    padding: 6px 20px;
+    border-bottom: 1px solid #0f3460;
+    flex-shrink: 0;
+}
+
+.feed-btn {
+    background: #0f3460;
+    color: #4fc3f7;
+    border: 1px solid #4fc3f7;
+    padding: 4px 12px;
+    margin-right: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+.feed-btn.active {
+    background: #4fc3f7;
+    color: #0f3460;
+}
+
+/* Feed Views */
+.feed-view {
+    display: none;
+    flex: 1;
+    overflow: auto;
+}
+
+.feed-view.active {
+    display: block;
+}
+
+/* Decoded Table */
+#feed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#feed-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#feed-table th {
+    background: #0f3460;
+    color: #4fc3f7;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#feed-table th:hover {
+    background: #1a4a7a;
+}
+
+#feed-table th.sorted-asc::after { content: ' \25B2'; }
+#feed-table th.sorted-desc::after { content: ' \25BC'; }
+
+#feed-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1a2e;
+    white-space: nowrap;
+}
+
+#feed-table tr { background: #16213e; }
+#feed-table tr:nth-child(even) { background: #1a1f3e; }
+#feed-table tr:hover { background: #1e3a5f; }
+
+#feed-table tr.new-aircraft { animation: highlight 2s ease-out; }
+@keyframes highlight {
+    from { background: #2e7d32; }
+}
+
+.alt-low { color: #4caf50; }
+.alt-mid { color: #ffeb3b; }
+.alt-high { color: #f44336; }
+.squawk-emerg { color: #ff1744; font-weight: bold; }
+.on-ground { color: #8bc34a; font-style: italic; }
+.callsign { color: #fff; font-weight: 600; }
+.no-data { color: #555; }
+
+/* Raw Messages */
+#feed-raw {
+    padding: 12px 20px;
+    font-size: 12px;
+    line-height: 1.6;
+    background: #0d0d1a;
+}
+
+#feed-raw .msg { color: #8bc34a; }
+#feed-raw .ts { color: #666; }

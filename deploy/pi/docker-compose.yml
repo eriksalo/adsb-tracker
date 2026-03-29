@@ -90,6 +90,23 @@ services:
     depends_on:
       - ultrafeeder
 
+  # Custom FastAPI/Leaflet tracker UI
+  adsb-tracker:
+    build:
+      context: ../..
+      dockerfile: deploy/pi/Dockerfile
+    container_name: adsb-tracker
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      - DUMP1090_HOST=ultrafeeder
+      - DUMP1090_SBS_PORT=30003
+      - STATION_LAT=${FEEDER_LAT}
+      - STATION_LON=${FEEDER_LONG}
+    depends_on:
+      - ultrafeeder
+
 volumes:
   ultrafeeder-globe:
   ultrafeeder-graphs:
