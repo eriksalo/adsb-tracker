@@ -4,6 +4,15 @@ services:
     container_name: ultrafeeder
     restart: unless-stopped
     privileged: true
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 30003 || exit 1"]
       interval: 30s
@@ -72,6 +81,15 @@ services:
     image: ghcr.io/sdr-enthusiasts/docker-airnavradar:latest
     container_name: airnavradar
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
     environment:
       - BEASTHOST=ultrafeeder
       - LAT=${FEEDER_LAT}
@@ -87,6 +105,15 @@ services:
     image: ghcr.io/sdr-enthusiasts/docker-flightradar24:latest
     container_name: flightradar24
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
     environment:
       - BEASTHOST=ultrafeeder
       - BEASTPORT=30005
@@ -103,6 +130,15 @@ services:
     image: willfarrell/autoheal:latest
     container_name: autoheal
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 32m
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "2"
     environment:
       - AUTOHEAL_CONTAINER_LABEL=autoheal
       - AUTOHEAL_INTERVAL=30
@@ -117,6 +153,15 @@ services:
       dockerfile: deploy/pi/Dockerfile
     container_name: adsb-tracker
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
     ports:
       - "8081:8080"
     environment:
