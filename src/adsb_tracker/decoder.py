@@ -11,6 +11,7 @@ from adsb_tracker.store import AircraftStore
 async def connect_sbs(host: str, port: int) -> AsyncIterator[str]:
     """Connect to dump1090 SBS port, yield one line at a time. Reconnects on failure."""
     while True:
+        writer = None
         try:
             logger.info(f"Connecting to dump1090 SBS at {host}:{port}")
             reader, writer = await asyncio.open_connection(host, port)
@@ -27,9 +28,15 @@ async def connect_sbs(host: str, port: int) -> AsyncIterator[str]:
                     line = line.strip()
                     if line:
                         yield line
-            writer.close()
         except (ConnectionRefusedError, OSError) as e:
             logger.warning(f"Cannot connect to dump1090 SBS: {e}")
+        finally:
+            if writer:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
         logger.info("Reconnecting to dump1090 in 5 seconds...")
         await asyncio.sleep(5)
 

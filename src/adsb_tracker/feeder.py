@@ -15,11 +15,11 @@ async def run_beast_relay(
     Reconnects both ends independently on failure.
     """
     while True:
-        source_reader = None
+        source_writer = None
         dest_writer = None
         try:
             logger.info(f"Beast relay: connecting to source {source_host}:{source_port}")
-            source_reader, _ = await asyncio.open_connection(source_host, source_port)
+            source_reader, source_writer = await asyncio.open_connection(source_host, source_port)
 
             logger.info(f"Beast relay: connecting to destination {dest_host}:{dest_port}")
             _, dest_writer = await asyncio.open_connection(dest_host, dest_port)
@@ -38,8 +38,13 @@ async def run_beast_relay(
         except Exception as e:
             logger.error(f"Beast relay unexpected error: {e}")
         finally:
-            if dest_writer:
-                dest_writer.close()
+            for w in (dest_writer, source_writer):
+                if w:
+                    w.close()
+                    try:
+                        await w.wait_closed()
+                    except Exception:
+                        pass
 
         logger.info("Beast relay: reconnecting in 10 seconds...")
         await asyncio.sleep(10)

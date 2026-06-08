@@ -41,6 +41,9 @@ services:
       # Network outputs
       - READSB_NET_SBS_OUTPUT=true
 
+      # Globe history retention (hours) — prevent unbounded disk growth
+      - READSB_GLOBE_HISTORY_DURATION=24
+
       # tar1090 settings
       - UPDATE_TAR1090=true
       - TAR1090_DEFAULTCENTERLAT=${FEEDER_LAT}
