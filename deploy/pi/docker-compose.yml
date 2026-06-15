@@ -41,8 +41,10 @@ services:
       # Network outputs
       - READSB_NET_SBS_OUTPUT=true
 
-      # Globe history retention (hours) — prevent unbounded disk growth
-      - READSB_GLOBE_HISTORY_DURATION=24
+      # Reduce SD card I/O — Pi 3B SDIO bus is shared with WiFi
+      - READSB_GLOBE_HISTORY_DURATION=8
+      - READSB_HEATMAP_INTERVAL=120
+      - GRAPHS1090_REDUCE_IO=yes
 
       # tar1090 settings
       - UPDATE_TAR1090=true
@@ -75,9 +77,9 @@ services:
       - ultrafeeder-graphs:/var/lib/collectd
       - ultrafeeder-cache:/var/cache/readsb
     tmpfs:
-      - /run:exec,size=128m
-      - /tmp:size=64m
-      - /var/log:size=32m
+      - /run:exec,size=64m
+      - /tmp:size=32m
+      - /var/log:size=16m
 
   # AirNav RadarBox feeder (free Business account $399/yr)
   airnavradar:
